@@ -35,22 +35,6 @@ public partial class AuthPlugin : BasePlugin
             return false;
         }
     }
-
-    [HarmonyPatch(typeof(EOSManager), nameof(EOSManager.EOSConnectPlatformLoginCallback))]
-    public static class AuthCallbackPatch
-    {
-        // ReSharper disable once InconsistentNaming
-        public static bool Prefix(EOSManager __instance, LoginCallbackInfo loginCallbackInfo)
-        {
-            if (loginCallbackInfo.ResultCode == Result.Success)
-            {
-                return true;
-            }
-
-            __instance.ContinueInOfflineMode();
-            return false;
-        }
-    }
     
     [HarmonyPatch(typeof(StoreManager), nameof(StoreManager.InitiateStorePurchaseStar))]
     public static class DisableStarBuyPatch
