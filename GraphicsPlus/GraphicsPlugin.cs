@@ -5,17 +5,17 @@ using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
 using UnityEngine;
 
-namespace LightingPlus;
+namespace GraphicsPlus;
 
-[BepInAutoPlugin("dev.xtracube.lightingplugin")]
-public partial class LightingPlugin : BasePlugin
+[BepInAutoPlugin("dev.xtracube.graphicsplus")]
+public partial class GraphicsPlugin : BasePlugin
 {
-    private static LightingPlugin Instance { get; set; }
+    private static GraphicsPlugin Instance { get; set; }
     
     private ConfigEntry<int> TargetFrameRate { get; set; }
     private ConfigEntry<LightSourceRendererType> LightSourceRenderMode { get; set; }
     
-    public LightingPlugin()
+    public GraphicsPlugin()
     {
         Instance = this;
         TargetFrameRate = Config.Bind("General", "Target Frame Rate", 60, "The target frame rate of the game");

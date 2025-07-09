@@ -8,7 +8,7 @@ using Il2CppSystem;
 
 namespace AuthFix;
 
-[BepInAutoPlugin("dev.xtracube.authplugin")]
+[BepInAutoPlugin("dev.xtracube.authfix")]
 // ReSharper disable once ClassNeverInstantiated.Global
 public partial class AuthPlugin : BasePlugin
 {

@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthFix", "AuthFix\AuthFix.csproj", "{11FBC798-BAF5-4EE5-9511-BE6DB0592F99}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LightingPlus", "LightingPlus\LightingPlus.csproj", "{730ECAB9-3AD5-4473-A7AA-1D9EE928E59B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphicsPlus", "GraphicsPlus\GraphicsPlus.csproj", "{730ECAB9-3AD5-4473-A7AA-1D9EE928E59B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
