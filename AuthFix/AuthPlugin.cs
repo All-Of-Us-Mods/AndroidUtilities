@@ -5,6 +5,7 @@ using Epic.OnlineServices;
 using Epic.OnlineServices.Connect;
 using HarmonyLib;
 using Il2CppSystem;
+using System.Collections.Generic;
 
 namespace AuthFix;
 
@@ -12,9 +13,37 @@ namespace AuthFix;
 // ReSharper disable once ClassNeverInstantiated.Global
 public partial class AuthPlugin : BasePlugin
 {
+    private static Dictionary<string, string> Translations = [];
+
+    public static string GetStarlightString(string key)
+    {
+        if (Translations.TryGetValue(key, out var value))
+        {
+            return value;
+        }
+        return "STRMISS";
+    }
+
     public override void Load()
     {
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), Id);
+
+        var translationsField = typeof(IL2CPPChainloader).GetField("Translations", BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
+        if (translationsField != null)
+        {
+            if (translationsField.GetValue(null) is Dictionary<string, string> translations)
+            {
+                Translations = translations;
+                foreach (var kvp in translations)
+                {
+                    Log.LogInfo($"Key: {kvp.Key}, Value: {kvp.Value}");
+                }
+            }
+        }
+        else
+        {
+            Log.LogInfo("Translations field not found");
+        }
     }
 
     [HarmonyPatch(typeof(EOSManager), nameof(EOSManager.LoginWithCorrectPlatformImpl))]
@@ -44,8 +73,8 @@ public partial class AuthPlugin : BasePlugin
         {
             var purchasePopUp = StoreMenu.Instance.plsWaitModal;
             purchasePopUp.waitingText.gameObject.SetActive(false);
-            purchasePopUp.titleText.text = "NOT SUPPORTED";
-            purchasePopUp.infoText.text = "Platform Purchases are not supported in Starlight.\nBuy in the vanilla client instead.";
+            purchasePopUp.titleText.text = GetStarlightString("starlight_iap_not_supported_title");
+            purchasePopUp.infoText.text = GetStarlightString("starlight_iap_not_supported_desc");
             purchasePopUp.infoText.gameObject.SetActive(true);
             purchasePopUp.controllerFocusHolder.gameObject.SetActive(true);
             purchasePopUp.closeButton.gameObject.SetActive(true);
