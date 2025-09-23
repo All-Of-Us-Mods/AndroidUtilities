@@ -8,6 +8,7 @@ using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Il2CppSystem;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -18,35 +19,13 @@ namespace AuthFix;
 // ReSharper disable once ClassNeverInstantiated.Global
 public partial class AuthPlugin : BasePlugin
 {
-    private static Dictionary<string, string> Translations = [];
-
-    public static string GetStarlightString(string key)
-    {
-        return Translations.GetValueOrDefault(key, "STRMISS");
-    }
+    [DllImport("libstarlight.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    private static extern string get_string(string key);
 
     public override void Load()
     {
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), Id);
         ServerManager.DefaultRegions = new Il2CppReferenceArray<IRegionInfo>(0);
-
-        var translationsField = typeof(IL2CPPChainloader).GetField("Translations",
-            BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public);
-        if (translationsField != null)
-        {
-            if (translationsField.GetValue(null) is Dictionary<string, string> translations)
-            {
-                Translations = translations;
-                foreach (var kvp in translations)
-                {
-                    Log.LogInfo($"Key: {kvp.Key}, Value: {kvp.Value}");
-                }
-            }
-        }
-        else
-        {
-            Log.LogInfo("Translations field not found");
-        }
     }
     
     [HarmonyPatch(typeof(ServerDropdown), nameof(ServerDropdown.FillServerOptions))]
@@ -140,8 +119,8 @@ public partial class AuthPlugin : BasePlugin
         {
             var purchasePopUp = StoreMenu.Instance.plsWaitModal;
             purchasePopUp.waitingText.gameObject.SetActive(false);
-            purchasePopUp.titleText.text = GetStarlightString("starlight_iap_not_supported_title");
-            purchasePopUp.infoText.text = GetStarlightString("starlight_iap_not_supported_desc");
+            purchasePopUp.titleText.text = get_string("starlight_iap_not_supported_title");
+            purchasePopUp.infoText.text = get_string("starlight_iap_not_supported_desc");
             purchasePopUp.infoText.gameObject.SetActive(true);
             purchasePopUp.controllerFocusHolder.gameObject.SetActive(true);
             purchasePopUp.closeButton.gameObject.SetActive(true);
