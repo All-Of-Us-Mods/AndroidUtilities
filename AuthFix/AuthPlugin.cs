@@ -5,8 +5,6 @@ using Epic.OnlineServices;
 using Epic.OnlineServices.Connect;
 using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
-using Il2CppSystem;
-using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -26,6 +24,14 @@ public partial class AuthPlugin : BasePlugin
     {
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), Id);
         ServerManager.DefaultRegions = new Il2CppReferenceArray<IRegionInfo>(0);
+        
+        SceneManager.add_sceneLoaded((System.Action<Scene, LoadSceneMode>) ((scene, _) =>
+        {
+            if (scene.name == "MainMenu")
+            {
+                ModManager.Instance.ShowModStamp();
+            }
+        }));
     }
     
     [HarmonyPatch(typeof(ServerDropdown), nameof(ServerDropdown.FillServerOptions))]
@@ -102,7 +108,7 @@ public partial class AuthPlugin : BasePlugin
             var credentials = new Credentials();
             credentials.Token = new Utf8String("DUMMY");
             credentials.Type = ExternalCredentialType.ItchioKey;
-            loginOptions.Credentials = new Nullable<Credentials>(credentials);
+            loginOptions.Credentials = new Il2CppSystem.Nullable<Credentials>(credentials);
             var loginOptions2 = loginOptions;
             __instance.PlatformInterface.GetConnectInterface().Login(ref loginOptions2, null, successCallbackIn);
             __instance.stopTimeOutCheck = true;
