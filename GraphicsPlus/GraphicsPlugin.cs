@@ -36,15 +36,4 @@ public partial class GraphicsPlugin : BasePlugin
             Application.targetFrameRate = Instance.TargetFrameRate.Value;
         }
     }
-
-    // light source patch
-    [HarmonyPatch(typeof(LightSource), nameof(LightSource.Initialize))]
-    public static class LightSourcePatch
-    {
-        // ReSharper disable once InconsistentNaming
-        public static void Prefix(LightSource __instance)
-        {
-            __instance.rendererType = Instance.LightSourceRenderMode.Value;
-        }
-    }
 }
