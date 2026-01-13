@@ -10,7 +10,6 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
-using BepInEx.Unity.IL2CPP.Utils.Collections;
 
 namespace AuthFix;
 
