@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
+using BepInEx.Unity.IL2CPP.Utils.Collections;
 
 namespace AuthFix;
 
@@ -30,10 +31,46 @@ public partial class AuthPlugin : BasePlugin
             if (scene.name == "MainMenu")
             {
                 ModManager.Instance.ShowModStamp();
+
+                GameObject exitGameButton = FindInactiveByName("ExitGameButton");
+
+                if (exitGameButton != null)
+                {
+                    exitGameButton.GetComponent<ConditionalHide>().enabled = false;
+                    exitGameButton.SetActive(true);
+                }
+
+                GameObject adsButton = FindInactiveByName("AdsButton");
+
+                // No Standalone script to manage it, it's managed somewhere else.
+                if (adsButton != null)
+                {
+                    adsButton.transform.localScale = Vector3.zero;
+                    adsButton.GetComponent<PassiveButton>().enabled = false;
+                    adsButton.SetActive(false);
+                }
             }
         }));
     }
-    
+
+    public static GameObject FindInactiveByName(string name)
+    {
+        Scene activeScene = SceneManager.GetActiveScene();
+        Il2CppSystem.Collections.Generic.List<GameObject> rootObjects = new Il2CppSystem.Collections.Generic.List<GameObject>();
+        activeScene.GetRootGameObjects(rootObjects);
+
+        foreach (GameObject root in rootObjects)
+        {
+            // GetComponentsInChildren<Transform>(true) finds all children, active or not
+            Transform[] children = root.GetComponentsInChildren<Transform>(true);
+            foreach (Transform child in children)
+            {
+                if (child.name == name) return child.gameObject;
+            }
+        }
+        return null;
+    }
+
     [HarmonyPatch(typeof(ServerDropdown), nameof(ServerDropdown.FillServerOptions))]
     public static class ServerDropdownPatch
     {
