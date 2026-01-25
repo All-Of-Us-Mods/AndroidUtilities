@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AuthFix/AuthFix.csproj" />
+  <Project Path="GraphicsPlus/GraphicsPlus.csproj" />
+</Solution>
