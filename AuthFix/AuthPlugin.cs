@@ -1,12 +1,12 @@
 ﻿using System.Reflection;
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
-using Epic.OnlineServices;
 using Epic.OnlineServices.Connect;
 using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Epic.OnlineServices;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -17,13 +17,13 @@ namespace AuthFix;
 // ReSharper disable once ClassNeverInstantiated.Global
 public partial class AuthPlugin : BasePlugin
 {
-    [DllImport("libstarlight.so", CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
-    private static extern string get_string(string key);
+    [LibraryImport("libstarlight.so", EntryPoint = "get_string", StringMarshalling = StringMarshalling.Utf8)]
+    private static unsafe partial string get_string(string key);
 
     public override void Load()
     {
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), Id);
-        ServerManager.DefaultRegions = new Il2CppReferenceArray<IRegionInfo>(0);
+        ServerManager.DefaultRegions = new Il2CppReferenceArray<IRegionInfo>([]);
         
         SceneManager.add_sceneLoaded((System.Action<Scene, LoadSceneMode>) ((scene, _) =>
         {
@@ -145,8 +145,10 @@ public partial class AuthPlugin : BasePlugin
             credentials.Token = new Utf8String("DUMMY");
             credentials.Type = ExternalCredentialType.ItchioKey;
             loginOptions.Credentials = new Il2CppSystem.Nullable<Credentials>(credentials);
-            var loginOptions2 = loginOptions;
-            __instance.PlatformInterface.GetConnectInterface().Login(ref loginOptions2, null, successCallbackIn);
+
+            // Callback must be pinned to avoid GC collecting it
+            GCHandle.Alloc(successCallbackIn, GCHandleType.Pinned);
+            __instance.PlatformInterface.GetConnectInterface().Login(ref loginOptions, null, successCallbackIn);
             __instance.stopTimeOutCheck = true;
 
             return false;
