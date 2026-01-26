@@ -84,6 +84,12 @@ public partial class AuthPlugin : BasePlugin
 
         public static bool Prefix(ServerDropdown __instance)
         {
+            if (ServerManager.Instance.AvailableRegions.Count <= 3)
+            {
+                // Don't adjust for small region lists
+                return true;
+            }
+            
             var num = 0;
             __instance.background.size = new Vector2(8.4f, 4.8f);
 
