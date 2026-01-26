@@ -40,6 +40,14 @@ public partial class GraphicsPlugin : BasePlugin
             if (!Instance.FullResolution.Value) return;
 
             Instance.Log.LogInfo($"Setting fullscreen resolution to {Display.main.systemWidth}x{Display.main.systemHeight}");
+            
+            Screen.autorotateToPortrait = false;
+            Screen.autorotateToPortraitUpsideDown = false;
+            Screen.autorotateToLandscapeLeft = false;
+            Screen.autorotateToLandscapeRight = false;
+
+            Screen.orientation = ScreenOrientation.Portrait;
+
             Screen.SetResolution(
                 Display.main.systemWidth,
                 Display.main.systemHeight,
