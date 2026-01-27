@@ -20,6 +20,9 @@ public partial class AuthPlugin : BasePlugin
     [LibraryImport("libstarlight.so", EntryPoint = "get_string", StringMarshalling = StringMarshalling.Utf8)]
     private static unsafe partial string get_string(string key);
 
+    [LibraryImport("libstarlight.so", EntryPoint = "quit_app")]
+    private static unsafe partial void quit_app();
+
     public override void Load()
     {
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), Id);
@@ -68,6 +71,16 @@ public partial class AuthPlugin : BasePlugin
             }
         }
         return null;
+    }
+
+    [HarmonyPatch(typeof(SceneChanger), nameof(SceneChanger.ExitGame))]
+    public static class ExitPatch
+    {
+        public static bool Prefix()
+        {
+            quit_app();
+            return false;
+        }
     }
 
     [HarmonyPatch(typeof(ServerDropdown), nameof(ServerDropdown.FillServerOptions))]
