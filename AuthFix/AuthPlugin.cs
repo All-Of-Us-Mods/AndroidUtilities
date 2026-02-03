@@ -215,7 +215,7 @@ public partial class AuthPlugin : BasePlugin
     [HarmonyPatch(typeof(HttpMatchmakerManager), nameof(HttpMatchmakerManager.TryReadCachedToken))]
     public static class CoGetOrRefreshTokenPatch
     {
-        public static bool Prefix(ref bool __result, ref string matchmakerToken)
+        public static bool Prefix(ref bool __result, [HarmonyArgument(0)] ref string matchmakerToken)
         {
             if (!SignInFailPatch.SignInFailed)
             {
