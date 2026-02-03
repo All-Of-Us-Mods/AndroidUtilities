@@ -1,12 +1,19 @@
-﻿using System.Reflection;
+﻿using AmongUs.Data;
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
+using Epic.OnlineServices;
 using Epic.OnlineServices.Connect;
 using HarmonyLib;
+using Il2CppInterop.Common;
+using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
+using Il2CppInterop.Runtime.Runtime;
+using InnerNet;
+using System;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
-using Epic.OnlineServices;
+using System.Text.Json;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -157,7 +164,7 @@ public partial class AuthPlugin : BasePlugin
     public static class AuthPatch
     {
         // ReSharper disable once InconsistentNaming
-        public static bool Prefix(EOSManager __instance, OnLoginCallback successCallbackIn)
+        public static bool Prefix(EOSManager __instance, [HarmonyArgument(0)] OnLoginCallback successCallbackIn)
         {
             var loginOptions = new LoginOptions();
             var credentials = new Credentials();
@@ -187,6 +194,146 @@ public partial class AuthPlugin : BasePlugin
             purchasePopUp.infoText.gameObject.SetActive(true);
             purchasePopUp.controllerFocusHolder.gameObject.SetActive(true);
             purchasePopUp.closeButton.gameObject.SetActive(true);
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(EOSManager), nameof(EOSManager.ContinueInOfflineMode))]
+    public static class SignInFailPatch
+    {
+        public static bool SignInFailed;
+
+        // ReSharper disable once InconsistentNaming
+        public static bool Prefix()
+        {
+            SignInFailed = true;
+            DataManager.Player.Account.LoginStatus = EOSManager.AccountLoginStatus.LoggedIn;
+            DataManager.Settings.Multiplayer.ChatMode = QuickChatModes.FreeChatOrQuickChat;
+            DataManager.Player.Save();
+            EOSManager.Instance.IsAllowedOnline(true);
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(HttpMatchmakerManager), nameof(HttpMatchmakerManager.TryReadCachedToken))]
+    public static class CoGetOrRefreshTokenPatch
+    {
+        public static bool Prefix(ref bool __result, ref string matchmakerToken)
+        {
+            if (!SignInFailPatch.SignInFailed)
+            {
+                return true;
+            }
+
+            __result = true;
+            matchmakerToken = Convert.ToBase64String(JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                Content = new
+                {
+                    Puid = "RemoveAccounts",
+                    ClientVersion = Constants.GetBroadcastVersion(),
+                    ExpiresAt = DateTime.UtcNow.AddHours(1),
+                },
+                Hash = "impostor_was_here",
+            }));
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(EOSManager), nameof(EOSManager.IsAllowedOnline))]
+    public static class IsAllowedOnlineOverride
+    {
+        public static bool Prefix([HarmonyArgument(0)] ref bool canOnline)
+        {
+            if (SignInFailPatch.SignInFailed)
+            {
+                canOnline = true;
+            }
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(AccountManager), nameof(AccountManager.CanPlayOnline))]
+    public static class CanPlayOnlineOverride
+    {
+        public static void Postfix([HarmonyArgument(0)] ref bool __result)
+        {
+            if (SignInFailPatch.SignInFailed)
+            {
+                __result = true;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(EOSManager), nameof(EOSManager.IsFreechatAllowed))]
+    public static class IsFreechatAllowedOverride
+    {
+        public static void Postfix(ref bool __result)
+        {
+            if (SignInFailPatch.SignInFailed)
+            {
+                __result = true;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(EOSManager), nameof(EOSManager.UpdatePermissionKeys))]
+    public static class UpdatePermissionKeysOverride
+    {
+        public static bool Prefix([HarmonyArgument(0)] Il2CppSystem.Action callback)
+        {
+            if (!SignInFailPatch.SignInFailed)
+            {
+                return true;
+            }
+
+            DestroyableSingleton<FriendsListManager>.Instance.Ui.Close(false);
+            DataManager.Player.Account.LoginStatus = EOSManager.AccountLoginStatus.LoggedIn;
+            DataManager.Player.Save();
+            callback.Invoke();
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(AmongUsClient), nameof(AmongUsClient.Update))]
+    public static class AmongUsClientUpdate
+    {
+        public static void Postfix()
+        {
+            if (SignInFailPatch.SignInFailed && EOSManager.Instance.loginFlowFinished)
+            {
+                DataManager.Player.Account.LoginStatus = EOSManager.AccountLoginStatus.LoggedIn;
+            }
+        }
+    }
+
+
+    [HarmonyPatch(typeof(EOSManager), nameof(EOSManager.ProductUserId), MethodType.Getter)]
+    public static class ProductUserIdOverride
+    {
+        public static bool Prefix(ref string __result)
+        {
+            if (!SignInFailPatch.SignInFailed)
+            {
+                return true;
+            }
+
+            __result = ".";
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(EOSManager), nameof(EOSManager.UserIDToken), MethodType.Getter)]
+    public static class UserIDTokenOverride
+    {
+        public static bool Prefix(ref string __result)
+        {
+            if (!SignInFailPatch.SignInFailed)
+            {
+                return true;
+            }
+
+            __result = ".";
             return false;
         }
     }
