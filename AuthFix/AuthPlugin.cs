@@ -82,7 +82,18 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
+            // Call our custom quit implementation through JNI
             quit_app();
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(AdsManager), nameof(AdsManager.InitLevelPlay))]
+    public static class DisableAdsPatch
+    {
+        public static bool Prefix()
+        {
+            // WebView loaded by LevelPlay can cause crashing and lag.
             return false;
         }
     }
@@ -178,10 +189,19 @@ public partial class AuthPlugin : BasePlugin
         }
     }
 
+    [HarmonyPatch(typeof(EOSManager), nameof(EOSManager.InitializePlatformImpl))]
+    public static class AuthPatch2
+    {
+        public static bool Prefix()
+        {
+            // We don't want Google Play Games to initialize at all.
+            return false;
+        }
+    }
+
     [HarmonyPatch(typeof(StoreManager), nameof(StoreManager.InitiateStorePurchaseStar))]
     public static class DisableStarBuyPatch
     {
-        // ReSharper disable once InconsistentNaming
         public static bool Prefix()
         {
             var purchasePopUp = StoreMenu.Instance.plsWaitModal;
@@ -200,7 +220,6 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool SignInFailed;
 
-        // ReSharper disable once InconsistentNaming
         public static bool Prefix()
         {
             SignInFailed = true;
