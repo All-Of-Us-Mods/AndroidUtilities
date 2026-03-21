@@ -30,6 +30,7 @@ public partial class AuthPlugin : BasePlugin
 
     [LibraryImport("libstarlight.so", EntryPoint = "quit_app")]
     private static unsafe partial void quit_app();
+    private static bool RanLobbyJoin;
 
     public override void Load()
     {
@@ -62,7 +63,10 @@ public partial class AuthPlugin : BasePlugin
                     adsButton.SetActive(false);
                 }
 
-                coroutines.StartCoroutine(WaitForLogin().WrapToIl2Cpp());
+                if (!RanLobbyJoin)
+                {
+                    coroutines.StartCoroutine(WaitForLogin().WrapToIl2Cpp());
+                }
             }
         }));
     }
@@ -117,6 +121,7 @@ public partial class AuthPlugin : BasePlugin
             ServerManager.Instance.SetRegion(selectedRegion);
             AmongUsClient.Instance.StartCoroutine(AmongUsClient.Instance.CoFindGameInfoFromCodeAndJoin(GameCode.GameNameToInt(code)));
         }
+        RanLobbyJoin = true;
     }
 
     public static GameObject FindInactiveByName(string name)
