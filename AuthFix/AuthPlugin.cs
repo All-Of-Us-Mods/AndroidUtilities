@@ -1,5 +1,4 @@
-﻿using AmongUs.Data;
-using BepInEx;
+﻿using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Epic.OnlineServices;
@@ -11,7 +10,6 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -23,7 +21,7 @@ namespace AuthFix;
 public partial class AuthPlugin : BasePlugin
 {
     [LibraryImport("libstarlight.so", EntryPoint = "get_string", StringMarshalling = StringMarshalling.Utf8)]
-    private static unsafe partial string get_string(string key);
+    private static unsafe partial nint get_string(string key);
 
     [LibraryImport("libstarlight.so", EntryPoint = "get_lobby", StringMarshalling = StringMarshalling.Utf8)]
     private static partial string get_lobby();
@@ -31,6 +29,11 @@ public partial class AuthPlugin : BasePlugin
     [LibraryImport("libstarlight.so", EntryPoint = "quit_app")]
     private static unsafe partial void quit_app();
     private static bool RanLobbyJoin;
+
+    public static string GetString(string key)
+    {
+        return Marshal.PtrToStringUTF8(get_string(key)) ?? string.Empty;
+    }
 
     public override void Load()
     {
@@ -271,8 +274,8 @@ public partial class AuthPlugin : BasePlugin
         {
             var purchasePopUp = StoreMenu.Instance.plsWaitModal;
             purchasePopUp.waitingText.gameObject.SetActive(false);
-            purchasePopUp.titleText.text = get_string("starlight_iap_not_supported_title");
-            purchasePopUp.infoText.text = get_string("starlight_iap_not_supported_desc");
+            purchasePopUp.titleText.text = GetString("starlight_iap_not_supported_title");
+            purchasePopUp.infoText.text = GetString("starlight_iap_not_supported_desc");
             purchasePopUp.infoText.gameObject.SetActive(true);
             purchasePopUp.controllerFocusHolder.gameObject.SetActive(true);
             purchasePopUp.closeButton.gameObject.SetActive(true);
