@@ -1,6 +1,7 @@
 ﻿using AmongUs.Data;
 using BepInEx;
 using BepInEx.Unity.IL2CPP;
+using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Epic.OnlineServices;
 using Epic.OnlineServices.Connect;
 using HarmonyLib;
@@ -32,6 +33,8 @@ public partial class AuthPlugin : BasePlugin
 
     public override void Load()
     {
+        var coroutines = AddComponent<Coroutines>();
+
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), Id);
         ServerManager.DefaultRegions = new Il2CppReferenceArray<IRegionInfo>([]);
         
@@ -58,8 +61,62 @@ public partial class AuthPlugin : BasePlugin
                     adsButton.GetComponent<PassiveButton>().enabled = false;
                     adsButton.SetActive(false);
                 }
+
+                coroutines.StartCoroutine(WaitForLogin().WrapToIl2Cpp());
             }
         }));
+    }
+
+    public System.Collections.IEnumerator WaitForLogin()
+    {
+        if (string.IsNullOrEmpty(get_lobby()))
+        {
+            yield break;
+        }
+
+        while (EOSManager.Instance == null)
+        {
+            yield return null;
+        }
+
+        var eos = EOSManager.Instance;
+
+        while (string.IsNullOrEmpty(eos.FriendCode))
+        {
+            yield return null;
+        }
+        while (!StoreManager.Instance.FinishedInitializationFlow)
+        {
+            yield return null;
+        }
+
+        var parts = get_lobby().Split(["\r\n", "\n"], StringSplitOptions.None);
+
+        if (parts.Length < 2)
+        {
+            yield break;
+        }
+
+        string region = parts[0];
+        string code = parts[1];
+
+        var regionCandidates = new[]
+        {
+            region,
+            $"https://{region}",
+            $"http://{region}"
+        };
+
+        var selectedRegion = ServerManager.Instance.AvailableRegions.FirstOrDefault(r =>
+            r.Servers.Any(s => regionCandidates.Contains(s.Ip, StringComparer.OrdinalIgnoreCase)) ||
+            regionCandidates.Contains(r.PingServer, StringComparer.OrdinalIgnoreCase)
+        );
+
+        if (selectedRegion != null)
+        {
+            ServerManager.Instance.SetRegion(selectedRegion);
+            AmongUsClient.Instance.StartCoroutine(AmongUsClient.Instance.CoFindGameInfoFromCodeAndJoin(GameCode.GameNameToInt(code)));
+        }
     }
 
     public static GameObject FindInactiveByName(string name)
@@ -218,3 +275,5 @@ public partial class AuthPlugin : BasePlugin
         }
     }
 }
+
+public class Coroutines : MonoBehaviour { }
