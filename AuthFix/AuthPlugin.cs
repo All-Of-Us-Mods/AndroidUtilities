@@ -1,4 +1,8 @@
-﻿using BepInEx;
+﻿using System;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using BepInEx;
 using BepInEx.Unity.IL2CPP;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Epic.OnlineServices;
@@ -6,10 +10,6 @@ using Epic.OnlineServices.Connect;
 using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using InnerNet;
-using System;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -24,12 +24,18 @@ public partial class AuthPlugin : BasePlugin
     private static unsafe partial nint get_string(string key);
 
     [LibraryImport("libstarlight.so", EntryPoint = "get_lobby", StringMarshalling = StringMarshalling.Utf8)]
-    private static partial string get_lobby();
+    private static unsafe partial nint get_lobby();
 
     [LibraryImport("libstarlight.so", EntryPoint = "quit_app")]
     private static unsafe partial void quit_app();
-    private static bool RanLobbyJoin;
 
+    private static bool _ranLobbyJoin;
+
+    public static string GetLobby()
+    {
+        return Marshal.PtrToStringUTF8(get_lobby()) ?? string.Empty;
+    }
+    
     public static string GetString(string key)
     {
         return Marshal.PtrToStringUTF8(get_string(key)) ?? string.Empty;
@@ -42,7 +48,7 @@ public partial class AuthPlugin : BasePlugin
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), Id);
         ServerManager.DefaultRegions = new Il2CppReferenceArray<IRegionInfo>([]);
         
-        SceneManager.add_sceneLoaded((System.Action<Scene, LoadSceneMode>) ((scene, _) =>
+        SceneManager.add_sceneLoaded((Action<Scene, LoadSceneMode>) ((scene, _) =>
         {
             if (scene.name == "MainMenu")
             {
@@ -66,7 +72,7 @@ public partial class AuthPlugin : BasePlugin
                     adsButton.SetActive(false);
                 }
 
-                if (!RanLobbyJoin)
+                if (!_ranLobbyJoin)
                 {
                     coroutines.StartCoroutine(WaitForLogin().WrapToIl2Cpp());
                 }
@@ -76,7 +82,7 @@ public partial class AuthPlugin : BasePlugin
 
     public System.Collections.IEnumerator WaitForLogin()
     {
-        if (string.IsNullOrEmpty(get_lobby()))
+        if (string.IsNullOrEmpty(GetLobby()))
         {
             yield break;
         }
@@ -97,7 +103,7 @@ public partial class AuthPlugin : BasePlugin
             yield return null;
         }
 
-        var parts = get_lobby().Split(["\r\n", "\n"], StringSplitOptions.None);
+        var parts = GetLobby().Split(["\r\n", "\n"], StringSplitOptions.None);
 
         if (parts.Length < 2)
         {
@@ -124,7 +130,7 @@ public partial class AuthPlugin : BasePlugin
             ServerManager.Instance.SetRegion(selectedRegion);
             AmongUsClient.Instance.StartCoroutine(AmongUsClient.Instance.CoFindGameInfoFromCodeAndJoin(GameCode.GameNameToInt(code)));
         }
-        RanLobbyJoin = true;
+        _ranLobbyJoin = true;
     }
 
     public static GameObject FindInactiveByName(string name)
