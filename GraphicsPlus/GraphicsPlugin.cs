@@ -1,24 +1,28 @@
-﻿using System.Reflection;
+﻿using System;
+using System.Collections;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
+using BepInEx.Unity.IL2CPP.Utils.Collections;
 using HarmonyLib;
 using Il2CppInterop.Runtime.Injection;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace GraphicsPlus;
 
 [BepInAutoPlugin("dev.xtracube.graphicsplus")]
 public partial class GraphicsPlugin : BasePlugin
 {
-    private static GraphicsPlugin Instance { get; set; }
+    private static GraphicsPlugin Instance { get; set; } = null!;
 
     private ConfigEntry<int> TargetFrameRate { get; set; }
 
     private ConfigEntry<bool> FullResolution { get; set; }
 
-    private static ResolutionManager _resolutionManager;
+    private static CustomResolutionManager? _customResolutionManager;
     
     [LibraryImport("libstarlight.so")]
     private static unsafe partial int get_width();
@@ -37,7 +41,13 @@ public partial class GraphicsPlugin : BasePlugin
     public override void Load()
     {
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), Id);
-        ClassInjector.RegisterTypeInIl2Cpp<ResolutionManager>();
+        ClassInjector.RegisterTypeInIl2Cpp<CustomResolutionManager>();
+
+        SceneManager.add_sceneLoaded((Action<Scene, LoadSceneMode>) ((scene, _) =>
+        {
+            _customResolutionManager?.SetNativeResolution();
+        }));
+        
         Log.LogInfo("GraphicsPlus loaded!");
     }
 
@@ -51,46 +61,63 @@ public partial class GraphicsPlugin : BasePlugin
 
             if (Instance.FullResolution.Value)
             {
-                _resolutionManager = Instance.AddComponent<ResolutionManager>();
+                _customResolutionManager = Instance.AddComponent<CustomResolutionManager>();
             }
         }
     }
 
-    public class ResolutionManager : MonoBehaviour
+    public class CustomResolutionManager : MonoBehaviour
     {
-        public ResolutionManager(nint ptr) : base(ptr) { }
+        public CustomResolutionManager(nint ptr) : base(ptr) { }
         
-        public ResolutionManager() : base(ClassInjector.DerivedConstructorPointer<ResolutionManager>())
+        public CustomResolutionManager() : base(ClassInjector.DerivedConstructorPointer<CustomResolutionManager>())
         {
             ClassInjector.DerivedConstructorBody(this);
         }
 
-        private ScreenOrientation _lastOrientation = ScreenOrientation.Landscape;
+        private record struct ScreenSize(int Width, int Height);
+
+        private ScreenSize _lastSize = new (0, 0);
+        private ScreenOrientation _lastOrientation = ScreenOrientation.Unknown;
+
+        private Coroutine? _activeCoroutine;
 
         public void Start()
         {
-            SetNativeResolution();
-        }
-
-        public void Update()
-        {
-            if (_lastOrientation != Screen.orientation)
-            {
-                SetNativeResolution();
-            }
+            _activeCoroutine = StartCoroutine(CoSetNativeResolution().WrapToIl2Cpp());
         }
 
         public void SetNativeResolution()
         {
+            _activeCoroutine ??= StartCoroutine(CoSetNativeResolution().WrapToIl2Cpp());
+        }
+
+        public void Update()
+        {
+            var screenSize = new ScreenSize(Display.main.renderingWidth, Display.main.renderingHeight);
+            var orientation = Screen.orientation;
+            if (_lastSize != screenSize ||  _lastOrientation != orientation)
+            {
+                _lastSize = screenSize;
+                _lastOrientation = orientation;
+                _activeCoroutine ??= StartCoroutine(CoSetNativeResolution().WrapToIl2Cpp());
+            }
+        }
+
+        public IEnumerator CoSetNativeResolution()
+        {
             ScalableBufferManager.ResizeBuffers(1f, 1f);
             var width = get_width();
             var height = get_height();
-            if (Screen.orientation is ScreenOrientation.Landscape or ScreenOrientation.LandscapeRight)
-            {
-                Screen.SetResolution(width, height, FullScreenMode.FullScreenWindow);
-                Instance.Log.LogInfo($"Set resolution to {width}x{height}");
-            }
-            _lastOrientation = Screen.orientation;
+            var aspectRatio = width / (float)height;
+
+            Screen.SetResolution(width, height, FullScreenMode.FullScreenWindow);
+            Instance.Log.LogInfo($"Set resolution to {width}x{height} (Orientation: {Screen.orientation})");
+
+            yield return null;
+            ResolutionManager.ResolutionChanged.Invoke(aspectRatio, width, height, true);
+
+            _activeCoroutine = null;
         }
     }
 }

@@ -4,6 +4,7 @@
         <LangVersion>latest</LangVersion>
         <DebugType>embedded</DebugType>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Nullable>enable</Nullable>
 
         <VersionPrefix>1.0.1</VersionPrefix>
         <VersionSuffix>dev</VersionSuffix>
