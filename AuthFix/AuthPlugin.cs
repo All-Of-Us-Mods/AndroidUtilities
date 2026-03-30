@@ -172,6 +172,19 @@ public partial class AuthPlugin : BasePlugin
         }
     }
 
+    [HarmonyPatch(typeof(SplashManager), nameof(SplashManager.Update))]
+    public static class SkipIntroPatch
+    {
+        public static void Prefix(SplashManager __instance)
+        {
+            if (__instance.doneLoadingRefdata && !__instance.startedSceneLoad)
+            {
+                __instance.sceneChanger.AllowFinishLoadingScene();
+                __instance.startedSceneLoad = true;
+            }
+        }
+    }
+
     [HarmonyPatch(typeof(ServerDropdown), nameof(ServerDropdown.FillServerOptions))]
     public static class ServerDropdownPatch
     {
