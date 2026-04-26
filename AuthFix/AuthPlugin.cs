@@ -29,6 +29,9 @@ public partial class AuthPlugin : BasePlugin
     [LibraryImport("libstarlight.so", EntryPoint = "quit_app")]
     private static unsafe partial void quit_app();
 
+    [LibraryImport("libstarlight.so", EntryPoint = "open_url", StringMarshalling = StringMarshalling.Utf8)]
+    private static unsafe partial nint open_url(string url);
+
     private static bool _ranLobbyJoin;
 
     private static readonly Il2CppSystem.String ACTION_VIEW = new("android.intent.action.VIEW".ToCharArray());
@@ -309,45 +312,7 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix([HarmonyArgument(0)] string url)
         {
-            if (string.IsNullOrEmpty(url))
-                return false;
-
-            if (!url.StartsWith("http"))
-                url = "https://" + url;
-
-            using var unityPlayer = new AndroidJavaObjectSafe("com.unity3d.player.UnityPlayer");
-
-            var activityRaw = unityPlayer.CallStaticReturn("getCurrentActivity");
-            using var currentActivity = new AndroidJavaObjectSafe((AndroidJavaObject)activityRaw);
-
-            using var uriClass = new AndroidJavaObjectSafe("android.net.Uri");
-            var uri = uriClass.CallStaticReturn(
-                "parse",
-                AndroidJavaObjectSafe.Args((Il2CppSystem.Object)(object)url)
-            );
-
-            using var intentClass = new AndroidJavaObjectSafe("android.content.Intent");
-
-            var intent = new AndroidJavaObjectSafe(
-                "android.content.Intent",
-                AndroidJavaObjectSafe.Args(
-                    ACTION_VIEW,
-                    uri
-                )
-            );
-
-            currentActivity.Call(
-                "runOnUiThread",
-                AndroidJavaObjectSafe.Args(
-                    (Il2CppSystem.Object)(object)(() =>
-                    {
-                        currentActivity.Call(
-                            "startActivity",
-                            AndroidJavaObjectSafe.Args(intent.Inner)
-                        );
-                    })
-                )
-            );
+            open_url(url);
             return false;
         }
     }
