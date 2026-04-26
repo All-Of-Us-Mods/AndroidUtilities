@@ -1,8 +1,5 @@
-﻿using System;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using BepInEx;
+﻿using BepInEx;
+using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
 using Epic.OnlineServices;
@@ -11,6 +8,11 @@ using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using InnerNet;
 using LibCpp2IL;
+using Rewired;
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -21,6 +23,10 @@ namespace AuthFix;
 // ReSharper disable once ClassNeverInstantiated.Global
 public partial class AuthPlugin : BasePlugin
 {
+    private static AuthPlugin Instance { get; set; } = null!;
+
+    private ConfigEntry<bool> KeyboardMode { get; set; }
+
     [LibraryImport("libstarlight.so", EntryPoint = "get_string", StringMarshalling = StringMarshalling.Utf8)]
     private static unsafe partial nint get_string(string key);
 
@@ -34,6 +40,7 @@ public partial class AuthPlugin : BasePlugin
     private static unsafe partial nint open_url(string url);
 
     private static bool _ranLobbyJoin;
+    private static bool _useKeyboard;
 
     public static string GetLobby()
     {
@@ -47,6 +54,11 @@ public partial class AuthPlugin : BasePlugin
 
     public override void Load()
     {
+        Instance = this;
+
+        KeyboardMode = Config.Bind("General", "Keyboard Mode", false, "Improves keyboard support, but may break regular touch behaviour.");
+        _useKeyboard = KeyboardMode.Value;
+
         var coroutines = AddComponent<Coroutines>();
 
         Harmony.CreateAndPatchAll(Assembly.GetExecutingAssembly(), Id);
@@ -185,6 +197,135 @@ public partial class AuthPlugin : BasePlugin
             }
         }
         return null;
+    }
+
+    [HarmonyPatch(typeof(ActiveInputManager), nameof(ActiveInputManager.OnLastActiveControllerChanged))]
+    static class ActiveInputManager_LastControllerPatch
+    {
+        public static bool Prefix()
+        {
+            if (!_useKeyboard)
+            {
+                return true;
+            }
+
+            if (ActiveInputManager.Instance.lastUsedController != null)
+            {
+                ActiveInputManager.Instance.lastUsedController = null;
+            }
+            AndroidKeyboardGuard.ForceKeyboardMode();
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(ActiveInputManager), nameof(ActiveInputManager.UpdateActiveControlType))]
+    static class ActiveInputManager_UpdatePatch
+    {
+        public static void Postfix()
+        {
+            if (!_useKeyboard)
+            {
+                return;
+            }
+
+            if (AndroidKeyboardGuard.ShouldUseKeyboardControls())
+            {
+                if (ActiveInputManager.Instance.lastUsedController != null)
+                {
+                    ActiveInputManager.Instance.lastUsedController = null;
+                }
+
+                AndroidKeyboardGuard.ForceKeyboardMode();
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(ActiveInputManager), "ShouldEnableTouch")]
+    static class ActiveInputManager_ShouldEnableTouchPatch
+    {
+        public static bool Prefix(ref bool __result)
+        {
+            if (!_useKeyboard)
+            {
+                return true;
+            }
+
+            if (!AndroidKeyboardGuard.ShouldUseKeyboardControls()) return true;
+
+            __result = false;
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(HudManager), nameof(HudManager.SetTouchType))]
+    static class HudManager_SetTouchTypePatch
+    {
+        public static void Prefix(ref ControlTypes type)
+        {
+            if (!_useKeyboard)
+            {
+                return;
+            }
+
+            if (AndroidKeyboardGuard.ShouldUseKeyboardControls() && type != ControlTypes.Keyboard)
+                type = ControlTypes.Keyboard;
+        }
+    }
+
+    [HarmonyPatch(typeof(ConsoleJoystick), nameof(ConsoleJoystick.SetMapEnabled))]
+    static class ConsoleJoystick_SetMapEnabledPatch
+    {
+        public static bool Prefix()
+        {
+            if (!_useKeyboard)
+            {
+                return true;
+            }
+
+            return !AndroidKeyboardGuard.IsKeyboardController();
+        }
+    }
+
+    [HarmonyPatch(typeof(ConsoleJoystick), nameof(ConsoleJoystick.Update))]
+    static class ConsoleJoystick_UpdatePatch
+    {
+        public static bool Prefix()
+        {
+            if (!_useKeyboard)
+            {
+                return true;
+            }
+
+            return !AndroidKeyboardGuard.ShouldUseKeyboardControls();
+        }
+    }
+
+    [HarmonyPatch(typeof(ControllerManager), nameof(ControllerManager.Update))]
+    static class ControllerManager_UpdatePatch
+    {
+        public static bool Prefix()
+        {
+            if (!_useKeyboard)
+            {
+                return true;
+            }
+
+            return !AndroidKeyboardGuard.ShouldUseKeyboardControls();
+        }
+    }
+
+    [HarmonyPatch(typeof(VirtualCursor), nameof(VirtualCursor.Update))]
+    static class VirtualCursor_UpdatePatch
+    {
+        public static bool Prefix()
+        {
+            if (!_useKeyboard)
+            {
+                return true;
+            }
+
+            return !AndroidKeyboardGuard.ShouldUseKeyboardControls();
+        }
     }
 
     [HarmonyPatch(typeof(SceneChanger), nameof(SceneChanger.ExitGame))]
