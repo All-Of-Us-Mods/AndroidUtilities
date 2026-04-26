@@ -1,4 +1,5 @@
-﻿using BepInEx;
+﻿using AmongUs.Data;
+using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Unity.IL2CPP;
 using BepInEx.Unity.IL2CPP.Utils.Collections;
@@ -41,6 +42,8 @@ public partial class AuthPlugin : BasePlugin
 
     private static bool _ranLobbyJoin;
     private static bool _useKeyboard;
+
+    internal static bool UseKeyboardMode => Instance?.KeyboardMode?.Value ?? _useKeyboard;
 
     public static string GetLobby()
     {
@@ -204,16 +207,11 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
-            if (!_useKeyboard)
+            if (!UseKeyboardMode)
             {
                 return true;
             }
 
-            if (ActiveInputManager.Instance.lastUsedController != null)
-            {
-                ActiveInputManager.Instance.lastUsedController = null;
-            }
-            AndroidKeyboardGuard.ForceKeyboardMode();
             return false;
         }
     }
@@ -221,36 +219,35 @@ public partial class AuthPlugin : BasePlugin
     [HarmonyPatch(typeof(ActiveInputManager), nameof(ActiveInputManager.UpdateActiveControlType))]
     static class ActiveInputManager_UpdatePatch
     {
-        public static void Postfix()
+        public static bool Prefix()
         {
-            if (!_useKeyboard)
-            {
-                return;
-            }
-
-            if (AndroidKeyboardGuard.ShouldUseKeyboardControls())
-            {
-                if (ActiveInputManager.Instance.lastUsedController != null)
-                {
-                    ActiveInputManager.Instance.lastUsedController = null;
-                }
-
-                AndroidKeyboardGuard.ForceKeyboardMode();
-            }
-        }
-    }
-
-    [HarmonyPatch(typeof(ActiveInputManager), "ShouldEnableTouch")]
-    static class ActiveInputManager_ShouldEnableTouchPatch
-    {
-        public static bool Prefix(ref bool __result)
-        {
-            if (!_useKeyboard)
+            if (!UseKeyboardMode)
             {
                 return true;
             }
 
-            if (!AndroidKeyboardGuard.ShouldUseKeyboardControls()) return true;
+            ActiveInputManager.InputType inputType = ActiveInputManager.InputType.Keyboard;
+            if (inputType != ActiveInputManager.currentControlType)
+            {
+                ActiveInputManager.CurrentInputSourceChanged?.Invoke();
+                if (HudManager.InstanceExists)
+                {
+                    HudManager.Instance.SetTouchType(ControlTypes.Keyboard);
+                }
+            }
+            return false;
+        }
+    }
+
+    [HarmonyPatch(typeof(ActiveInputManager), nameof(ActiveInputManager.ShouldEnableTouch))]
+    static class ActiveInputManager_ShouldEnableTouchPatch
+    {
+        public static bool Prefix(ref bool __result)
+        {
+            if (!UseKeyboardMode)
+            {
+                return true;
+            }
 
             __result = false;
             return false;
@@ -262,12 +259,12 @@ public partial class AuthPlugin : BasePlugin
     {
         public static void Prefix(ref ControlTypes type)
         {
-            if (!_useKeyboard)
+            if (!UseKeyboardMode)
             {
                 return;
             }
 
-            if (AndroidKeyboardGuard.ShouldUseKeyboardControls() && type != ControlTypes.Keyboard)
+            if (type != ControlTypes.Keyboard)
                 type = ControlTypes.Keyboard;
         }
     }
@@ -277,12 +274,12 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
-            if (!_useKeyboard)
+            if (!UseKeyboardMode)
             {
                 return true;
             }
 
-            return !AndroidKeyboardGuard.IsKeyboardController();
+            return false;
         }
     }
 
@@ -291,12 +288,12 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
-            if (!_useKeyboard)
+            if (!UseKeyboardMode)
             {
                 return true;
             }
 
-            return !AndroidKeyboardGuard.ShouldUseKeyboardControls();
+            return false;
         }
     }
 
@@ -305,12 +302,12 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
-            if (!_useKeyboard)
+            if (!UseKeyboardMode)
             {
                 return true;
             }
 
-            return !AndroidKeyboardGuard.ShouldUseKeyboardControls();
+            return false;
         }
     }
 
@@ -319,12 +316,12 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
-            if (!_useKeyboard)
+            if (!UseKeyboardMode)
             {
                 return true;
             }
 
-            return !AndroidKeyboardGuard.ShouldUseKeyboardControls();
+            return false;
         }
     }
 
