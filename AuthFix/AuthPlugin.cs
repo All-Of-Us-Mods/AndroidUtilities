@@ -292,42 +292,6 @@ public partial class AuthPlugin : BasePlugin
         }
     }
 
-    [HarmonyPatch(typeof(ConsoleJoystick), nameof(ConsoleJoystick.SetMapEnabled))]
-    static class ConsoleJoystick_SetMapEnabledPatch
-    {
-        public static bool Prefix()
-        {
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(ConsoleJoystick), nameof(ConsoleJoystick.Update))]
-    static class ConsoleJoystick_UpdatePatch
-    {
-        public static bool Prefix()
-        {
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(ControllerManager), nameof(ControllerManager.Update))]
-    static class ControllerManager_UpdatePatch
-    {
-        public static bool Prefix()
-        {
-            return true;
-        }
-    }
-
-    [HarmonyPatch(typeof(VirtualCursor), nameof(VirtualCursor.Update))]
-    static class VirtualCursor_UpdatePatch
-    {
-        public static bool Prefix()
-        {
-            return true;
-        }
-    }
-
     [HarmonyPatch(typeof(SceneChanger), nameof(SceneChanger.ExitGame))]
     public static class ExitPatch
     {
