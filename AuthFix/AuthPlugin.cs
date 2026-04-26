@@ -45,6 +45,26 @@ public partial class AuthPlugin : BasePlugin
 
     internal static bool UseKeyboardMode => Instance?.KeyboardMode?.Value ?? _useKeyboard;
 
+    private static void ForceKeyboardMode()
+    {
+        var oldType = ActiveInputManager.currentControlType;
+        ActiveInputManager.currentControlType = ActiveInputManager.InputType.Keyboard;
+
+        if (HudManager.InstanceExists)
+        {
+            var joystick = HudManager.Instance.joystick;
+            if (joystick == null || joystick.TryCast<KeyboardJoystick> == null)
+            {
+                HudManager.Instance.SetTouchType(ControlTypes.Keyboard);
+            }
+        }
+
+        if (oldType != ActiveInputManager.InputType.Keyboard)
+        {
+            ActiveInputManager.CurrentInputSourceChanged?.Invoke();
+        }
+    }
+
     public static string GetLobby()
     {
         return Marshal.PtrToStringUTF8(get_lobby()) ?? string.Empty;
@@ -212,6 +232,12 @@ public partial class AuthPlugin : BasePlugin
                 return true;
             }
 
+            if (ActiveInputManager.Instance != null && ActiveInputManager.Instance.lastUsedController != null)
+            {
+                ActiveInputManager.Instance.lastUsedController = null;
+            }
+
+            ForceKeyboardMode();
             return false;
         }
     }
@@ -226,15 +252,12 @@ public partial class AuthPlugin : BasePlugin
                 return true;
             }
 
-            ActiveInputManager.InputType inputType = ActiveInputManager.InputType.Keyboard;
-            if (inputType != ActiveInputManager.currentControlType)
+            if (ActiveInputManager.Instance != null && ActiveInputManager.Instance.lastUsedController != null)
             {
-                ActiveInputManager.CurrentInputSourceChanged?.Invoke();
-                if (HudManager.InstanceExists)
-                {
-                    HudManager.Instance.SetTouchType(ControlTypes.Keyboard);
-                }
+                ActiveInputManager.Instance.lastUsedController = null;
             }
+
+            ForceKeyboardMode();
             return false;
         }
     }
@@ -274,12 +297,7 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
-            if (!UseKeyboardMode)
-            {
-                return true;
-            }
-
-            return false;
+            return true;
         }
     }
 
@@ -288,12 +306,7 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
-            if (!UseKeyboardMode)
-            {
-                return true;
-            }
-
-            return false;
+            return true;
         }
     }
 
@@ -302,12 +315,7 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
-            if (!UseKeyboardMode)
-            {
-                return true;
-            }
-
-            return false;
+            return true;
         }
     }
 
@@ -316,12 +324,7 @@ public partial class AuthPlugin : BasePlugin
     {
         public static bool Prefix()
         {
-            if (!UseKeyboardMode)
-            {
-                return true;
-            }
-
-            return false;
+            return true;
         }
     }
 
