@@ -10,6 +10,7 @@ using Epic.OnlineServices.Connect;
 using HarmonyLib;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using InnerNet;
+using LibCpp2IL;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -33,8 +34,6 @@ public partial class AuthPlugin : BasePlugin
     private static unsafe partial nint open_url(string url);
 
     private static bool _ranLobbyJoin;
-
-    private static readonly Il2CppSystem.String ACTION_VIEW = new("android.intent.action.VIEW".ToCharArray());
 
     public static string GetLobby()
     {
@@ -118,24 +117,56 @@ public partial class AuthPlugin : BasePlugin
         string region = parts[0];
         string code = parts[1];
 
-        var regionCandidates = new[]
+        var normalizedCandidates = new[]
         {
-            region,
-            $"https://{region}",
-            $"http://{region}"
-        };
+            NormalizeHost(region)
+        }.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var selectedRegion = ServerManager.Instance.AvailableRegions.FirstOrDefault(r =>
-            r.Servers.Any(s => regionCandidates.Contains(s.Ip, StringComparer.OrdinalIgnoreCase)) ||
-            regionCandidates.Contains(r.PingServer, StringComparer.OrdinalIgnoreCase)
-        );
+        var selectedRegion = ServerManager.Instance.AvailableRegions.ToList().FirstOrDefault(r =>
+            r.Servers.Any(s => normalizedCandidates.Contains(NormalizeHost(s.Ip))) || normalizedCandidates.Contains(NormalizeHost(r.PingServer)));
+
+        string regions = "";
+
+        foreach (var regionname in ServerManager.Instance.AvailableRegions)
+        {
+            regions += $"{regionname.Name} ({regionname.PingServer}),";
+        }
 
         if (selectedRegion != null)
         {
             ServerManager.Instance.SetRegion(selectedRegion);
             AmongUsClient.Instance.StartCoroutine(AmongUsClient.Instance.CoFindGameInfoFromCodeAndJoin(GameCode.GameNameToInt(code)));
         }
+        else
+        {
+            Log.LogWarning($"selected region {region} is null :( (how?)");
+            Log.LogWarning(regions);
+        }
         _ranLobbyJoin = true;
+    }
+
+    static string NormalizeHost(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return string.Empty;
+
+        input = input.Trim();
+
+        if (!input.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !input.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            input = "http://" + input;
+        }
+
+        if (Uri.TryCreate(input, UriKind.Absolute, out var uri))
+        {
+            input = uri.Host;
+        }
+
+        if (input.StartsWith("www.", StringComparison.OrdinalIgnoreCase))
+            input = input[4..];
+
+        return input.ToLowerInvariant();
     }
 
     public static GameObject FindInactiveByName(string name)
